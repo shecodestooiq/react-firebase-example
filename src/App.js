@@ -1,82 +1,89 @@
-import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
-import { Formik, Form, ErrorMessage, Field } from 'formik';
-import * as Yup from 'yup';
-
-const validationSchema = Yup.object().shape({
-  firstName: Yup.string()
-    .min(3, 'Too short')
-    .max(16, 'Too long')
-    .required('First name is required'),
-  lastName: Yup.string()
-    .min(3, 'Too short')
-    .max(16, 'Too long')
-    .required('Last name is required'),
-  email: Yup.string().email('Invalid email').required('email is required'),
-  phoneNumber: Yup.string().matches(
-    '^(?:+971|00971|0)(?!2)((?:2|3|4|5|6|7|9|50|51|52|55|56)[0-9]{7,})$'
-  ),
-});
+import { useState, useEffect } from 'react';
+import { db } from './firebaseConfig';
+import {
+  collection,
+  doc,
+  query,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+} from 'firebase/firestore';
 
 function App() {
+  const [todos, setTodos] = useState([]);
+  const [nameField, setNameField] = useState('');
+  const [timeField, setTimeField] = useState('');
+
+  useEffect(() => {
+    const q = query(collection(db, 'todos'));
+    onSnapshot(q, (data) => {
+      const finalData = data.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      console.log(finalData);
+      setTodos(finalData);
+    });
+  }, []);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    try {
+      await addDoc(collection(db, 'todos'), {
+        name: nameField,
+        time: timeField,
+      });
+    } catch (err) {
+      alert(err);
+    }
+  }
+
+  async function deleteTodo(id) {
+    console.log(id);
+    try {
+      await deleteDoc(doc(db, 'todos', id));
+    } catch (err) {
+      alert(err);
+    }
+  }
+
+  async function updateTodo(id) {
+    console.log(id);
+    try {
+      await updateDoc(doc(db, 'todos', id), {
+        name: nameField,
+        time: timeField,
+      });
+    } catch (err) {
+      alert(err);
+    }
+  }
+
   return (
     <div>
-      <Formik
-        initialValues={{
-          firstName: '',
-          lastName: '',
-          email: '',
-        }}
-        onSubmit={(vals) => {
-          console.log(vals);
-          // submit logic
-        }}
-        validationSchema={validationSchema}
-      >
-        {({ values, errors, touched, handleChange }) => (
-          <Form>
-            <TextField
-              label='First Name'
-              name='firstName'
-              fullWidth
-              variant='outlined'
-              margin='dense'
-              value={values.firstName}
-              onChange={handleChange}
-              error={errors.firstName && touched.firstName}
-              helperText={<ErrorMessage name='firstName' />}
-              required
-            />
-            <TextField
-              label='Last Name'
-              name='lastName'
-              fullWidth
-              variant='outlined'
-              margin='dense'
-              value={values.lastName}
-              onChange={handleChange}
-              error={errors.lastName && touched.lastName}
-              helperText={<ErrorMessage name='lastName' />}
-              required
-            />
-            <TextField
-              label='Email'
-              name='email'
-              fullWidth
-              variant='outlined'
-              margin='dense'
-              value={values.email}
-              onChange={handleChange}
-              error={errors.email && touched.email}
-              helperText={<ErrorMessage name='email' />}
-              required
-            />
-            <Button variant='contained' type='submit' color='primary' fullWidth>
-              Submit
-            </Button>
-          </Form>
-        )}
-      </Formik>
+      <h1>Todos App</h1>
+      <form onSubmit={handleSubmit}>
+        <label>name</label>
+        <input
+          type='text'
+          name='nameField'
+          value={nameField}
+          onChange={(e) => setNameField(e.target.value)}
+        />
+        <label>Time</label>
+        <input
+          type='text'
+          name='nameField'
+          value={timeField}
+          onChange={(e) => setTimeField(e.target.value)}
+        />
+        <button type='submit'>Submit</button>
+      </form>
+      {todos.map((todo) => (
+        <div>
+          {todo.name}{' '}
+          <button onClick={() => updateTodo(todo.id)}>update</button>
+          <button onClick={() => deleteTodo(todo.id)}>delete</button>
+        </div>
+      ))}
     </div>
   );
 }
